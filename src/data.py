@@ -15,9 +15,9 @@ class LungDataset(torch.utils.data.Dataset):
         self.transforms = transforms
     
     def __getitem__(self, idx):
-        origin_name, mask_name = self.origin_mask_list[idx]
-        origin = Image.open(self.origins_folder / (origin_name + ".png")).convert("P")
-        mask = Image.open(self.masks_folder / (mask_name + ".png"))
+        origin_file, mask_file = self.origin_mask_list[idx]
+        origin = Image.open(self.origins_folder / origin_file).convert("L")
+        mask = Image.open(self.masks_folder / mask_file)
         if self.transforms is not None:
             origin, mask = self.transforms((origin, mask))
             
@@ -51,15 +51,21 @@ class Crop():
         
     def __call__(self, sample):
         origin, mask = sample
-        tl_shift = np.random.randint(0, self.max_shift)
-        br_shift = np.random.randint(0, self.max_shift)
         origin_w, origin_h = origin.size
-        crop_w = origin_w - tl_shift - br_shift
-        crop_h = origin_h - tl_shift - br_shift
         
-        origin = torchvision.transforms.functional.crop(origin, tl_shift, tl_shift,
+        max_left_shift_value = int(self.max_shift * origin_w)
+        max_top_shift_value = int(self.max_shift * origin_h)
+
+        left = np.random.randint(0, max_left_shift_value)
+        top = np.random.randint(0, max_top_shift_value)
+
+        crop_w = np.random.randint(int(0.5 * origin_w), origin_w-left)
+        crop_h = np.random.randint(int(0.5 * origin_h),origin_h-top)
+
+        
+        origin = torchvision.transforms.functional.crop(origin, top, left,
                                                         crop_h, crop_w)
-        mask = torchvision.transforms.functional.crop(mask, tl_shift, tl_shift,
+        mask = torchvision.transforms.functional.crop(mask, top, left,
                                                         crop_h, crop_w)
         return origin, mask
 
